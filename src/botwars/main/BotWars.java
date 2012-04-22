@@ -11,6 +11,7 @@ import org.anddev.andengine.audio.sound.Sound;
 import org.anddev.andengine.audio.sound.SoundFactory;
 import org.anddev.andengine.engine.Engine;
 import org.anddev.andengine.engine.camera.SmoothCamera;
+import org.anddev.andengine.engine.camera.ZoomCamera;
 import org.anddev.andengine.engine.camera.hud.HUD;
 import org.anddev.andengine.engine.camera.hud.controls.BaseOnScreenControl;
 import org.anddev.andengine.engine.camera.hud.controls.BaseOnScreenControl.IOnScreenControlListener;
@@ -63,7 +64,6 @@ import org.anddev.andengine.util.Debug;
 import android.content.Intent;
 import android.graphics.Color;
 import android.hardware.SensorManager;
-import android.os.CountDownTimer;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -130,7 +130,7 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	private TextureRegion mOnScreenControlBaseTextureRegion;
 	private TextureRegion mOnScreenControlKnobTextureRegion;
 	public DigitalOnScreenControl mDigitalOnScreenControl;
-	public HUD mHUD;
+
 	private BitmapTextureAtlas mHUDTextureAtlas; // atlas for HUD textures
 	private TextureRegion mJumpTextureRegion;
 	private TextureRegion mShootTextureRegion;
@@ -151,7 +151,7 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	private AnimatedSprite mPlayerSprite;
 	private AnimatedSprite mBulletSprite;
 
-	private static float mImpulseY = 10f;
+	private static float mImpulseY = 14f;
 	private static float mLinearVelocityX = 8.0f;
 
 	private static String mapName = "tmx/map_1.tmx";
@@ -187,7 +187,7 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	public ArrayList<IEntity> mEntityList;
 
 	private Rectangle rect;
-	public int enemyCount = 0;
+	private int enemyCount = 0;
 	private int wallCount = 0;
 	
 	private PinchZoomDetector mPinchZoomDetector;
@@ -199,7 +199,6 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	private static Body player_self_body;
 
 	private ChangeableText mScoreChangeableText;
-	private ChangeableText mTimerChangeableText;
 	private ChangeableText mRemainingEnemiesChangeableText;
 	public Font mScoreFont;
 	private BitmapTextureAtlas mScoreTextureAtlas;
@@ -344,32 +343,9 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 		mCamera.setBoundsEnabled(true);
 		mCamera.setBounds(0, mTMXTiledMap.getTileColumns()*mTMXTiledMap.getTileWidth(), 0, mTMXTiledMap.getTileRows()*mTMXTiledMap.getTileHeight());
 		mCamera.setChaseEntity(player_self_sprite);
-		if(mapID==0)totalTime=120000;
-		if(mapID==1)totalTime=60000;
-		if(mapID==2)totalTime=240000;
-		
-		startCountDownTimer();
 		return mScene;
-	}private long totalTime;
-	private CountDownTimer mCountDownTimer;
-	private void startCountDownTimer(){
-	mCountDownTimer=new CountDownTimer(totalTime, 1000) {
-		@Override
-	    public void onTick(long millisUntilFinished) {
-	       Debug.d("---------"+timer);
-//	       timer=(int)millisUntilFinished / 1000;
-	    	mTimerChangeableText.setText("Time: " + millisUntilFinished / 1000);
+	}
 
-			if(millisUntilFinished / 1000<10)mTimerChangeableText.setColor(255, 0, 0);
-	    }
-		@Override
-	    public void onFinish() {
-	        endGame(1);
-	    }
-	 }.start();
-
-}
-	private int timer=30;
 	private void createCollisionListener() {
 		collisionListener = new ContactListener() {
 
@@ -497,11 +473,7 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 				updateScore();
 				doAICalculations(player_self_body);
 				mRemainingEnemiesChangeableText.setText(remainingEnemies+" Enemies Left");
-				//mTimerChangeableText.setText("Timer: "+timer);
-				if(remainingEnemies==0)
-				{
-					endGame(2);
-				}
+				
 				if (desEnemy) {
 					if (fix1_name.contains("enemy"))
 						destroyGameObject(fix1_name);
@@ -533,7 +505,7 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 				updateHealthBar();
 				
 				if (Player_Max_Health <= 0) {
-					endGame(1);
+					endGame();
 					
 
 				}
@@ -626,20 +598,13 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	
 	public void initControls() {
 
-		mHUD = new HUD();
+		HUD mHUD = new HUD();
 
 		/* The ScoreText showing how many points the player scored. */
 		mScoreChangeableText = new ChangeableText(5, 5, mScoreFont, "Score: 0", "Score: XXXX".length());
 		mScoreChangeableText.setBlendFunction(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
 		mScoreChangeableText.setAlpha(0.9f);
 		mHUD.attachChild(mScoreChangeableText);
-		
-		mTimerChangeableText = new ChangeableText(CAMERA_WIDTH-180, 50, mScoreFont, "Time: x", "Time: xxx".length());
-		mTimerChangeableText.setBlendFunction(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
-		mTimerChangeableText.setColor(0, 255, 0);
-		mTimerChangeableText.setAlpha(0.9f);
-		mHUD.attachChild(mTimerChangeableText);
-		
 		
 		mRemainingEnemiesChangeableText = new ChangeableText(250, CAMERA_HEIGHT-40, mScoreFont, "x Enemies Left", "xxxx Enemies Left".length());
 		mRemainingEnemiesChangeableText.setBlendFunction(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
@@ -875,19 +840,19 @@ public class BotWars extends BaseGameActivity implements IPinchZoomDetectorListe
 	public static void setVelocity(float str) {
 		mLinearVelocityX = str; // Float.parseFloat(str);
 	}
-private static int mapID;
-	public static void setMap(int _mapID) {
-		mapID=_mapID;
-		setScene(_mapID);
-		if (_mapID == 0) {
+
+	public static void setMap(int mapID) {
+
+		setScene(mapID);
+		if (mapID == 0) {
 			mapName = "tmx/map_1.tmx";
 			mapOffset = 20;
 		}
-		if (_mapID == 1) {
+		if (mapID == 1) {
 			mapName = "tmx/map_2.tmx";
 			mapOffset = 20;
 		}
-		if (_mapID == 2) {
+		if (mapID == 2) {
 			mapName = "tmx/map_3.tmx";
 			mapOffset = 100;
 		}
@@ -932,7 +897,7 @@ private static int mapID;
 		{
 			if(name.contains("enemy"))
 			{
-				reduceRemainingEnemies();
+				remainingEnemies--;
 				Debug.d("remaining enemies   "+remainingEnemies);
 			}
 		mScene.detachChild(findShape(name));
@@ -1066,21 +1031,6 @@ private static int mapID;
 		}));
 	}
 
-	
-	/*private void createGameTimeHandler() {
-		final TimerHandler gameTimer;
-
-		this.getEngine().registerUpdateHandler(gameTimer= new TimerHandler(1, true, new ITimerCallback() {
-			@Override
-			public void onTimePassed(final TimerHandler pTimerHandler) {
-					timer--;
-					if(timer<5)mTimerChangeableText.setColor(255, 0, 0);
-			}
-		}));
-	}
-*/
-
-
 	public static void enableMusic(boolean m) {
 		enableMusic = m;
 	}
@@ -1096,12 +1046,11 @@ private static int mapID;
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-/*
+
 			Intent openStartMenu = new Intent(BotWars.this, StartMenu.class);
 			startActivity(openStartMenu);
 
-			finish();*/
-			endGame(0);
+			finish();
 			// do something on back.
 			return true;
 		}
@@ -1311,7 +1260,7 @@ private static int mapID;
 	}
 	
 	
-	public void updateScore()
+	private void updateScore()
 	{
 		if (enemyShot) {
 			mScore += 10;
@@ -1420,47 +1369,19 @@ private static int mapID;
 			reduceHealth = false;
 		}
 	}
-	public void reduceRemainingEnemies()
-	{
-		remainingEnemies--;	
-	}
 	
-	public void endGame(int action)
-	{mCountDownTimer.cancel();
-		//mPhysicsWorld.destroyBody(player_self_body);
-		//mPhysicsWorld.unregisterPhysicsConnector(mPhysicsWorld.getPhysicsConnectorManager().findPhysicsConnectorByShape(player_self_sprite));
-		//mScene.detachChild(player_self_sprite);
-		
-		if(action==0)
-		{
-			Intent StartIntent = new Intent(BotWars.this, StartMenu.class);
-			finish();
-			startActivity(StartIntent);	
-		}
-		if(action==1)
-		{
-			Intent StartIntent = new Intent(BotWars.this, GameOver.class);
-		finish();
-		startActivity(StartIntent);
-		}
-		if(action==2)
-		{
-			Intent StartIntent = new Intent(BotWars.this, LevelComplete.class);
-		finish();
-		startActivity(StartIntent);
-		}
-		
-	}
-/*	public void endGame(int action)
-	{if(action==2)
-		{
-		Intent StartIntent = new Intent(BotWars.this, LevelComplete.class);
-		finish();
+	
+	public void endGame()
+	{
+		mPhysicsWorld.destroyBody(player_self_body);
+		mPhysicsWorld.unregisterPhysicsConnector(mPhysicsWorld.getPhysicsConnectorManager().findPhysicsConnectorByShape(player_self_sprite));
+		mScene.detachChild(player_self_sprite);
+
+		Intent StartIntent = new Intent(BotWars.this, StartMenu.class);
 		startActivity(StartIntent);
 
-		}
-	
-	}*/
+		finish();
+	}
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================

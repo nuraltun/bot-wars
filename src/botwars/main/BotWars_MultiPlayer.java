@@ -9,16 +9,12 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-import javax.microedition.khronos.opengles.GL10;
-
-import org.anddev.andengine.engine.camera.hud.HUD;
 import org.anddev.andengine.engine.handler.IUpdateHandler;
 import org.anddev.andengine.engine.handler.timer.ITimerCallback;
 import org.anddev.andengine.engine.handler.timer.TimerHandler;
 import org.anddev.andengine.entity.scene.Scene;
 import org.anddev.andengine.entity.scene.popup.TextPopupScene;
 import org.anddev.andengine.entity.sprite.AnimatedSprite;
-import org.anddev.andengine.entity.text.ChangeableText;
 import org.anddev.andengine.util.Debug;
 
 import android.app.AlertDialog;
@@ -43,8 +39,7 @@ public class BotWars_MultiPlayer extends BotWars {
 	private boolean desPlayerMP=false;
 	private static final int NO_MP_MESSAGE=1;
 	public boolean isRunning=false;
-	private int mTeamScore;
-	private ChangeableText mTeamScoreChangeableText; 
+
 	@Override
 	public Scene onLoadScene() {
 
@@ -63,10 +58,7 @@ public class BotWars_MultiPlayer extends BotWars {
 		player_mp_body = super.mPhysicsWorld.getPhysicsConnectorManager().findBodyByShape(player_mp_sprite);
 		startReceiverThread();
 	
-		mTeamScoreChangeableText = new ChangeableText(5, 35, mScoreFont, "Team: 0", "Team: XXXX".length());
-		mTeamScoreChangeableText.setBlendFunction(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA);
-		mTeamScoreChangeableText.setAlpha(0.9f);
-		mHUD.attachChild(mTeamScoreChangeableText);
+		
 		
 		return super.mScene;
 		
@@ -151,7 +143,7 @@ public class BotWars_MultiPlayer extends BotWars {
 				
 				for(int i=0;i<enemyLandedArr.length;i++)
 				{
-					if(mPhysicsWorld.getPhysicsConnectorManager().findBodyByShape(findShape("enemy"+i))!=null)//&&enemyLandedArr[i])
+					if(enemyLandedArr[i]&&mPhysicsWorld.getPhysicsConnectorManager().findBodyByShape(findShape("enemy"+i))!=null)
 					{
 						sendMessage("enemy"+i+","+
 					mPhysicsWorld.getPhysicsConnectorManager().findBodyByShape(findShape("enemy"+i)).getPosition().x+","+
@@ -183,18 +175,15 @@ private boolean remEnemy;
 				if(desPlayerMP)
 				{
 					destroyGameObject("player_MP");
-					TextPopupScene mTextPopupScene = new TextPopupScene(BotWars_MultiPlayer.this.getEngine().getCamera(), mScene.getChildScene(), mScoreFont, "PLAYER 2 HAS DIED", 5.0f);
-					//mScene.setChildScene(mDigitalOnScreenControl);
+					TextPopupScene mTextPopupScene = new TextPopupScene(BotWars_MultiPlayer.this.getEngine().getCamera(), BotWars_MultiPlayer.this.getEngine().getScene(), mScoreFont, "PLAYER 2 HAS DIED", 5.0f);
 					desPlayerMP=false;
 				}
 				doAICalculations(player_mp_body);
 				
-				//if(remainingEnemies==0)endGame();
 				if(remEnemy)
 				{
 					destroyGameObject("remove_"+remEnemyName);
 				}
-				mTeamScoreChangeableText.setText("Team: "+mTeamScore);
 			}
 
 			@Override
@@ -281,30 +270,34 @@ private boolean remEnemy;
 	}
 
 	@Override
-	public void endGame(int action)
+	public void endGame()
 	{
 		sendMessage("remove,0,0");
 		isRunning=false;
-		super.endGame(action);
+		super.endGame();
 	}
 	
 	@Override
 	protected void onDestroy() {
-//isRunning=false;
+isRunning=false;
 		super.onDestroy();
 	}
 
+
+	public void endGame(int action)
+	{
+		
+	}
 	
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if ((keyCode == KeyEvent.KEYCODE_BACK ||keyCode == KeyEvent.KEYCODE_HOME) && event.getRepeatCount() == 0) {
 
 			isRunning=false;
-	//		Intent openStartMenu = new Intent(BotWars_MultiPlayer.this, StartMenu.class);
-		//	startActivity(openStartMenu);
+			Intent openStartMenu = new Intent(BotWars_MultiPlayer.this, StartMenu.class);
+			startActivity(openStartMenu);
 			
-			//finish();
-			super.onKeyDown(keyCode, event);
+			finish();
 			// do something on back.
 			return true;
 		}
@@ -335,12 +328,5 @@ if(name.contains("remove_"))
 	}
 
 super.destroyGameObject(name);
-}
-
-@Override
-public void reduceRemainingEnemies()
-{
-	mTeamScore=(enemyCount-remainingEnemies)*10;
-	super.reduceRemainingEnemies();
 }
 }
